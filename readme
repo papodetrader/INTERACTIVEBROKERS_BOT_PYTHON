@@ -1,1 +1,4 @@
 Bot using IB_INSYNC
+
+
+The files are without the strategy, you most first create it on the plan.py and point out to the strategy.py that will use the indicators.py to run and get you a true-false
