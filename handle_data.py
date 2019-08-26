@@ -238,26 +238,3 @@ class handler:
 
 
 
-################################################################################################################################
-
-# hd = handler()
-
-
-# print(type(hd.last_trade_id()))
-
-# print(hd.open_positions())
-# print(hd.trades())
-
-# print(hd.instruments_info('GC', 'others'))
-
-# print(hd.candle_data('GCU9', 1, 2).iloc[-1].close)
-
-# print(hd.order('USDJPY', 25000, 107, 106, 106.1, 'lmt'))
-# print(hd.order('EURUSD', -44444, 1.1, 1.12))
-# print(hd.order('IBJP225', 10, 2950, 2900))
-
-# print(hd.close_order('1297192293'))
-
-# print(ib.portfolio())
-
-# print(hd.trading_hours('IBAU200')[1])
