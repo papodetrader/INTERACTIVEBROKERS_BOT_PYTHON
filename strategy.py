@@ -96,10 +96,10 @@ class strategy:
     def strategy4(self, id, strat, period=20):
         df = self.dataframe(id, strat, period)
 
-        if df.iloc[-1].close > self.indicators.channel(df, period) and self.plan[id]['direction'] == 'buy':
+        if self.indicators.channel(df, period) == 'long' and self.plan[id]['direction'] == 'buy':
             return True
 
-        elif df.iloc[-1].close < self.indicators.channel(df, period) and self.plan[id]['direction'] == 'sell':
+        elif self.indicators.channel(df, period) == 'short' and self.plan[id]['direction'] == 'sell':
             return True
 
         return False
