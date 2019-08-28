@@ -4,10 +4,11 @@ import datetime as dt
 import decimal
 from ib_insync import *
 import time
+from user_data import *
 
 
 ib = IB()
-ib.connect('127.0.0.1', 7496, clientId=19801127)
+ib.connect('127.0.0.1', 7496, clientId=clientID)
 
 class handler:
     
@@ -182,7 +183,7 @@ class handler:
     def close_order(self, ID, condition=None):
 
         for i in ib.openTrades():
-            if i.order.ocaGroup == str(ID):
+            if i.order.ocaGroup == str(ID) and i.order.orderType == 'LMT':
                 i.order.update(orderType = 'MKT')
                 ib.placeOrder(i.contract, i.order)
             elif condition == 'all':
@@ -217,10 +218,13 @@ class handler:
 
 
     
-    def last_trade(self):
+    def last_trade(self, tradeID):
 
         for i in ib.fills():
-            last_trade = [i.execution.permId, i.execution.price, self.symbol_fix(i.contract.localSymbol)]
+            if i.execution.permId == tradeID+1 or i.execution.permId == tradeID+2:
+                last_trade = [i.execution.permId, i.execution.price, self.symbol_fix(i.contract.localSymbol), i.execution.time.time()]
+            else:
+                last_trade = None
 
         return last_trade
 
@@ -235,6 +239,7 @@ class handler:
 
 
         return start_trade, end_trade
+
 
 
 

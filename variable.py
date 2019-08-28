@@ -2,10 +2,8 @@ from execution import trading_execution
 from plan import build_plan
 
 import os
-# import time
 import datetime as dt
 import pandas as pd
-# import pickle
 import pytz
 import warnings
 warnings.filterwarnings("ignore")
@@ -40,7 +38,11 @@ def read_variables():
                 plan.get(orders_.index[i]).update({'try_qty': plan.get(orders_.index[i])['try_qty']-orders_.iloc[i]})
 
     if len(trades.keys()) > 0:
-        trades_ = pd.DataFrame(trades.values(), trades.keys()).set_index('plan_key').index.value_counts()
+        trades_ = pd.DataFrame(trades.values(), trades.keys())
+        trades_ = trades_[trades_.entry_date == dt.datetime.now(tz=pytz.timezone('Europe/Moscow')).date()]
+        trades = pd.DataFrame.to_dict(trades_, orient='index')
+        trades_ = trades_.set_index('plan_key').index.value_counts()
+#         trades_ = pd.DataFrame(trades.values(), trades.keys()).set_index('plan_key').index.value_counts()
         for i in range(len(trades_)):
             if trades_.index[i] in plan.keys():
                 plan.get(trades_.index[i]).update({'try_qty': plan.get(trades_.index[i])['try_qty']-trades_.iloc[i]})
