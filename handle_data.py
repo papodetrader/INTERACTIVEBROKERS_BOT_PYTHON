@@ -31,6 +31,8 @@ class handler:
             'IBJP225': ['CFD', 'USDJPY'],
             'IBHK50': ['CFD', 'USDHKD'],
             'IBAU200': ['CFD', 'AUDUSD'], 
+            # 'XAUUSD': ['CMDTY', 'USD'],
+            # 'IBM': ['STK', 'USD'],
             # 'GC': ['Future', 'USD']
         }
     
@@ -103,7 +105,10 @@ class handler:
             return CFD(symbol, exchange='SMART')
         elif type == 'Future':
             return Future(symbol, exchange="NYMEX")
-
+        elif type == 'CMDTY':
+            return Commodity(symbol, exchange="SMART")
+        elif type == 'STK':
+            return Stock(symbol, exchange="SMART")
     
 
     def order(self, symbol, size, target, stop, lmt=0, type='mkt'):
@@ -235,11 +240,14 @@ class handler:
         lt = [i.split(':')[1] for i in self.instruments_info(symbol, 'others')[0].tradingHours.split(';')[0].split('-')]
 
         start_trade = int(lt[0]) + 300
+        
+        if start_trade > 2000 and start_trade < 2400:
+            start_trade = 0
+
         end_trade = int(lt[1]) + 300   
 
 
         return start_trade, end_trade
-
 
 
 

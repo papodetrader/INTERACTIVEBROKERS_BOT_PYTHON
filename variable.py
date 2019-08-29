@@ -47,6 +47,8 @@ def read_variables():
             if trades_.index[i] in plan.keys():
                 plan.get(trades_.index[i]).update({'try_qty': plan.get(trades_.index[i])['try_qty']-trades_.iloc[i]})
 
+    print(pd.DataFrame(plan.values(), plan.keys()))
+
     return plan, orders, trades
 
 

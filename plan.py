@@ -49,20 +49,42 @@ class build_plan:
                                 data = pd.concat([data, df], sort=True).drop_duplicates()
 
                         data = data.set_index(['date', 'asset'])
-
                         if len(db) > 1:
                                 db = db.reset_index().set_index(['date', 'asset'])
                                 data = pd.concat([db, data], sort=True).drop_duplicates()
 
+                        
                         data = data.reset_index().set_index('date')
-                        pd.DataFrame.sort_index(data, inplace=True)
 
-                        data = data[data.index < sorted(data.index.unique())[-1]]
-                        data = data.dropna()
 
-                        data.to_pickle('./../DATA/IB') 
-				
-                        ind.indicador(data)
+                        self._remove_duplicated(data)
+                
+
+
+        def _remove_duplicated(self, df):
+
+                df = df.reset_index()
+                db = pd.DataFrame()
+
+                for i in df.asset.unique():
+                        data = df[df.asset == i]      
+                        pd.DataFrame.drop_duplicates(data, subset='date', inplace=True)  
+                        db = pd.concat([db, data], sort=True)
+
+                db = db.set_index('date')
+
+                pd.DataFrame.sort_index(db, inplace=True)
+
+                db = db[db.index < sorted(db.index.unique())[-1]]
+                db = db.dropna()
+
+                db.to_pickle('./../DATA/IB') 
+
+                ### OPTIONAL TO RUN PLAN ONLY ON THOSE ASSETS
+                db = db[db.asset.isin(['EURUSD', 'EURAUD', 'GBPJPY', 'GBPCAD', 'USDCAD', 'USDJPY', 'AUDJPY', 'IBUS500',
+                                        'IBUST100', 'IBGB100', 'IBDE30', 'IBFR40', 'IBJP225', 'IBHK50', 'IBAU200'])]
+
+                ind.indicador(db)
                 
                 
 
@@ -71,7 +93,7 @@ class build_plan:
 
                 db = pd.read_pickle('./../DATA/IB_OHLC') #UP-
                 db = db.dropna()
-                db = db[db.index == db.index[-30]]
+                db = db[db.index == db.index[-1]]
 
                 ### ADD THE IDEA BEHIND THE BUILDING DAY PLAN ###
 		### HERE JUST A SIMPLE EXAMPLE OF RANDOM LONG-SHORT ###
@@ -81,6 +103,13 @@ class build_plan:
 
                 ltp = db[db.asset.isin(trade_long)]
                 ltp['strat'] = 'trade_long'
+
+                ### EASY ADAPT, CHANGE DB.CLOSE <> DB.SMA20 or OTHER OPTIONS THAT ARE INSIDE PLAN_INDICAT.PY 
+                SMA20_SMA200_UP = db[db.SMA20 > db.SMA200]
+                SMA20_SMA200_UP['strat'] = 'SMA20_SMA200_UP'
+
+                SMA20_SMA200_DOWN = db[db.SMA20 < db.SMA200]
+                SMA20_SMA200_DOWN['strat'] = 'SMA20_SMA200_DOWN'
 
 		trade = pd.concat([ltm, ltp])
 		trade.index = trade.index + dt.timedelta(1)
@@ -100,15 +129,29 @@ class build_plan:
 
                         if trade.iloc[i].strat == 'trade_short':
                                 direction = 'sell'
-                                strat = {'strat1': 5}
+                                strat = {'strat2': 5}
                                 strat_name = 'trade_short'
                                 try_qty = 3
                                 strat_cond = 'and'
 
                         elif trade.iloc[i].strat == 'trade_long':
                                 direction = 'buy'
-                                strat = {'strat1': 5}
+                                strat = {'strat2': 5}
                                 strat_name = 'trade_long'
+                                try_qty = 3
+                                strat_cond = 'and'
+
+                        if trade.iloc[i].strat == 'SMA20_SMA200_DOWN':
+                                direction = 'sell'
+                                strat = {'strat2': 5}
+                                strat_name = 'SMA20_SMA200_DOWN'
+                                try_qty = 3
+                                strat_cond = 'and'
+
+                        elif trade.iloc[i].strat == 'SMA20_SMA200_UP':
+                                direction = 'buy'
+                                strat = {'strat2': 5}
+                                strat_name = 'SMA20_SMA200_UP'
                                 try_qty = 3
                                 strat_cond = 'and'
 

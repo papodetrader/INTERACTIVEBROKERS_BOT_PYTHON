@@ -268,7 +268,7 @@ class trading_execution():
 
 
     def condition(self, id, curr):
-
+        
         if ((self.plan[id]['try_qty'] >= 1) and 
             ((self.current_time() > self.plan[id]['start'] and self.current_time() < self.plan[id]['break_start']) 
             or (self.current_time() < self.plan[id]['end'] and self.current_time() > self.plan[id]['break_end'])) and 
@@ -299,8 +299,6 @@ class trading_execution():
         if direction == 'sell':
             size = -size
         
-        print(size)
-
         order = self.handle.order(curr, size, target, stop)
 
         print(order)
