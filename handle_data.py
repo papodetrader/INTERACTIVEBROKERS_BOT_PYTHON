@@ -3,6 +3,7 @@ import pytz
 import datetime as dt
 import decimal
 from ib_insync import *
+from assets import assets
 import time
 from user_data import *
 
@@ -13,28 +14,7 @@ ib.connect('127.0.0.1', 7496, clientId=clientID)
 class handler:
     
     def __init__(self):
-        self.assets = {
-            'EURUSD': ['Forex', 'USD'], 
-            'EURAUD': ['Forex', 'AUDUSD'], 
-            'GBPJPY': ['Forex', 'USDJPY'], 
-            'GBPCAD': ['Forex', 'USDCAD'],
-            'GBPUSD': ['Forex', 'GBPUSD'],
-            'USDCAD': ['Forex', 'USDCAD'], 
-            'USDJPY': ['Forex', 'USDJPY'],
-            'AUDJPY': ['Forex', 'USDJPY'],
-            'AUDUSD': ['Forex', 'AUDUSD'],
-            'IBUS500': ['CFD', 'USD'],
-            'IBUST100': ['CFD', 'USD'],
-            'IBGB100': ['CFD', 'GBPUSD'],
-            'IBDE30': ['CFD', 'EURUSD'],
-            'IBFR40': ['CFD', 'EURUSD'],
-            'IBJP225': ['CFD', 'USDJPY'],
-            'IBHK50': ['CFD', 'USDHKD'],
-            'IBAU200': ['CFD', 'AUDUSD'], 
-            # 'XAUUSD': ['CMDTY', 'USD'],
-            # 'IBM': ['STK', 'USD'],
-            # 'GC': ['Future', 'USD']
-        }
+        self.assets = assets
     
 
 
@@ -154,8 +134,8 @@ class handler:
         for i in ib.fills():
             if str(i.execution.permId) in db.index:
                 lt.update({str(i.execution.permId): {'entry_price': i.execution.price, 'date': i.execution.time.date(), 
-                                                    'asset': self.symbol_fix(i.contract.localSymbol), 'entry_time': i.execution.time.time(),
-                                                    'commission':i.commissionReport.commission}})
+                                                    'asset': self.symbol_fix(i.contract.localSymbol), 'entry_time': (i.execution.time + dt.timedelta(hours=4)).time(),
+                                                    'commission':i.commissionReport.commission, 'orderID': i.execution.orderId}})
             
         lt = pd.DataFrame(lt.values(), lt.keys())
 
@@ -227,7 +207,7 @@ class handler:
 
         for i in ib.fills():
             if i.execution.permId == tradeID+1 or i.execution.permId == tradeID+2:
-                last_trade = [i.execution.permId, i.execution.price, self.symbol_fix(i.contract.localSymbol), i.execution.time.time()]
+                last_trade = [i.execution.permId, i.execution.price, self.symbol_fix(i.contract.localSymbol), (i.execution.time + dt.timedelta(hours=4)).time()]
             else:
                 last_trade = None
 
