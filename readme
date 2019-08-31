@@ -1,6 +1,22 @@
-Bot using IB_INSYNC
+BOT using IB_INSYNC Library. Thank you Ewald!
 
+plan.py, plan_indict, strategy, indicat files most be setup by the user. There is some stuff there but just as sample of it.
 
-The files are without the strategy, you most first create it on the plan.py and 
-point out to the strategy.py that will use the indicators.py to run and get you a true-false
+The plan can be also setup easy with a dictionary as:
 
+plan = {
+    'EUR_USD_0': {
+        atr = 0.00750
+        break_lunch = [1100, 1500]
+        trading_hours = [900, 1800]
+        profit = [5, 30, 100, 'day']
+        stop = [1.5, 30, 100, 'day']
+        duration = pd.to_datetime(30, unit='m').time()
+        try_qty = 3
+        direction = 'sell'
+        strat = {'strat5': 3}
+        strat_cond = 'and'
+        strat_name = 'trade_short'
+        size = 100
+    }
+}
