@@ -3,18 +3,19 @@ import pytz
 import datetime as dt
 import decimal
 from ib_insync import *
-from assets import assets
+from assets import asset, assets
 import time
 from user_data import *
 
 
 ib = IB()
-ib.connect('127.0.0.1', 7496, clientId=clientID)
+ib.connect('127.0.0.1', 4002, clientId=clientID) #7496 TWS - 4002 GATEWAY
 
 class handler:
     
     def __init__(self):
         self.assets = assets
+        self.asset = asset
     
 
 
@@ -46,7 +47,7 @@ class handler:
 
 
 
-    def candle_data(self, symbol, size_in_minutes, count):
+    def candle_data(self, symbol, size_in_minutes, count, endDateTime=''):
         """ Candle data for symbols """
         
         contract = self.contract_find(symbol)
@@ -64,7 +65,7 @@ class handler:
 
         size_in_minutes = self.getGranularity(size_in_minutes)
 
-        bars = ib.reqHistoricalData(contract, endDateTime='', durationStr= count,
+        bars = ib.reqHistoricalData(contract, endDateTime=endDateTime, durationStr= count,
         barSizeSetting= size_in_minutes, whatToShow='MIDPOINT', useRTH=False)
 
         # convert to pandas dataframe:
@@ -75,27 +76,39 @@ class handler:
 
 
 
-    def contract_find(self, symbol):
+    def contract_find(self, symbol): #UP
+    
+        type = [self.assets.get(i)[2] for i in self.assets.keys() if symbol in self.assets.get(i)[0]][0]
+        exchange = [self.assets.get(i)[1] for i in self.assets.keys() if symbol in self.assets.get(i)[0]][0]
 
-        type = [self.assets.get(i)[0] for i in self.assets.keys() if i == symbol][0]
-
+        
         if type == 'Forex':
-            return Forex(symbol, exchange='IDEALPRO')
+            return Forex(symbol, exchange= exchange)
+            
         elif type == 'CFD':
-            return CFD(symbol, exchange='SMART')
+            return CFD(symbol, exchange= exchange)
+
         elif type == 'Future':
-            return Future(symbol, exchange="NYMEX")
+            localSymbol = ib.reqContractDetails(Future(symbol, exchange= exchange))[0].contract.localSymbol
+            secType = ib.reqContractDetails(Future(symbol, exchange= exchange))[0].contract.secType
+            conId = ib.reqContractDetails(Future(symbol, exchange= exchange))[0].contract.conId
+            lastTraded = ib.reqContractDetails(Future(symbol, exchange= exchange))[0].contract.lastTradeDateOrContractMonth
+
+            return Future(secType= secType, conId= conId, symbol= symbol, lastTradeDateOrContractMonth= lastTraded, exchange= exchange, localSymbol=localSymbol)
+
         elif type == 'CMDTY':
-            return Commodity(symbol, exchange="SMART")
-        elif type == 'STK':
-            return Stock(symbol, exchange="SMART")
+            return Commodity(symbol, exchange= exchange)
+            
+        elif type == 'Stock':
+            return Stock(symbol, exchange= exchange)
+
     
 
     def order(self, symbol, size, target, stop, lmt=0, type='mkt'):
 
         action = 'BUY' if size > 0 else 'SELL'
 
-        bracket = ib.bracketOrder(action= action, quantity= abs(size), limitPrice= lmt, takeProfitPrice= target, stopLossPrice= stop)
+        bracket = ib.bracketOrder(action= action, quantity= abs(size), limitPrice= lmt, takeProfitPrice= target, stopLossPrice= stop, tif='GTC', outsideRth=True) #UP
         bracket.parent.update(transmit = False)
         bracket.takeProfit.update(transmit = False)
         bracket.stopLoss.update(transmit = True)
@@ -134,7 +147,7 @@ class handler:
         for i in ib.fills():
             if str(i.execution.permId) in db.index:
                 lt.update({str(i.execution.permId): {'entry_price': i.execution.price, 'date': i.execution.time.date(), 
-                                                    'asset': self.symbol_fix(i.contract.localSymbol), 'entry_time': (i.execution.time + dt.timedelta(hours=4)).time(),
+                                                    'asset': self.symbol_fix(i.contract.localSymbol), 'entry_time': (i.execution.time + dt.timedelta(hours=3)).time(),
                                                     'commission':i.commissionReport.commission, 'orderID': i.execution.orderId}})
             
         lt = pd.DataFrame(lt.values(), lt.keys())
@@ -206,12 +219,12 @@ class handler:
     def last_trade(self, tradeID):
 
         for i in ib.fills():
-            if i.execution.permId == tradeID+1 or i.execution.permId == tradeID+2:
-                last_trade = [i.execution.permId, i.execution.price, self.symbol_fix(i.contract.localSymbol), (i.execution.time + dt.timedelta(hours=4)).time()]
-            else:
-                last_trade = None
 
-        return last_trade
+            if i.execution.permId == tradeID+1:
+                return [i.execution.permId, i.execution.price, self.symbol_fix(i.contract.localSymbol), (i.execution.time + dt.timedelta(hours=3)).time()]
+            
+            elif i.execution.permId == tradeID+2:
+                return [i.execution.permId, i.execution.price, self.symbol_fix(i.contract.localSymbol), (i.execution.time + dt.timedelta(hours=3)).time()]
 
     
 
@@ -228,6 +241,4 @@ class handler:
 
 
         return start_trade, end_trade
-
-
 

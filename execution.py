@@ -11,7 +11,7 @@ import pickle
 from chart import chart
 
 import logging
-logging.basicConfig( filename= (f"./DATA/log/main_{dt.datetime.now(tz=pytz.timezone('Europe/Moscow')).date()}.log"),
+logging.basicConfig( filename= (f"./DATA/log/execution_{dt.datetime.now(tz=pytz.timezone('Europe/Moscow')).date()}.log"),
                      filemode='w',
                      level=logging.ERROR,
                      format= '%(asctime)s - %(levelname)s - %(message)s',
@@ -33,7 +33,10 @@ class trading_execution():
 
 
     def current_time(self):
+        #if date_trade.date() == dt.datetime.now().date():
         x = dt.datetime.now(tz=pytz.timezone('Europe/Moscow')).hour * 100 + dt.datetime.utcnow().minute
+        # else:
+        #     x = date_trade.hour * 100 + date_trade.minute
         return x
 
 
@@ -45,23 +48,23 @@ class trading_execution():
 
 
 
-    def change_start(self, i):
+    def change_start(self, i): #date_trade
         waiting = min([self.plan.get(i)['strat'].get(ii) for ii in self.plan.get(i)['strat'].keys()])
 
         self.plan.get(i).update({
             'start': int(
-                str(pd.to_datetime((self.time_to_minutes(dt.datetime.now(tz=pytz.timezone('Europe/Moscow')).time()) + waiting), unit='m').time().hour) +
-                str(pd.to_datetime((self.time_to_minutes(dt.datetime.now(tz=pytz.timezone('Europe/Moscow')).time()) + waiting), unit='m').time().minute)
+                str(pd.to_datetime((self.time_to_minutes(dt.datetime.now(tz=pytz.timezone('Europe/Moscow')).time()) + waiting), unit='m').time().hour) + #date_trade.time()
+                str(pd.to_datetime((self.time_to_minutes(dt.datetime.now(tz=pytz.timezone('Europe/Moscow')).time()) + waiting), unit='m').time().minute) #date_trade.time()
                 )
             })
 
 
 
-    def check_duration(self, i):
+    def check_duration(self, i): #date_trade
         order_time = self.time_to_minutes(self.orders.get(i)['entry_time']) 
         duration = self.time_to_minutes(self.plan.get(i)['duration']) 
 
-        if (order_time + duration) < self.time_to_minutes(dt.datetime.now(tz=pytz.timezone('Europe/Moscow')).time()): 
+        if (order_time + duration) < self.time_to_minutes(dt.datetime.now(tz=pytz.timezone('Europe/Moscow')).time()): #date_trade
             return True
         else:
             return False
@@ -70,12 +73,23 @@ class trading_execution():
 
     def add_log(self, i, trade_id):
 
-        target_stop = [self.orders.get(i)['targetID'], self.orders.get(i)['stopID']]
-
+        #if date_trade.date() == dt.datetime.now().date():
         try:
+            target_stop = [self.orders.get(i)['targetID'], self.orders.get(i)['stopID']]
+            last_trade = self.handle.last_trade(trade_id)
 
-            if self.orders.get(i)['asset'] == self.handle.last_trade(trade_id)[2] and self.handle.last_trade(trade_id)[0] in target_stop:
-                close_price = self.handle.last_trade(trade_id)[1]
+            if self.orders.get(i)['asset'] == last_trade[2] and last_trade[0] in target_stop:
+                self.change_start(i)
+
+                close_price = last_trade[1]
+                # close_time = last_trade[3]
+                #closingID = last_trade[0]
+
+            #else:
+                # last_trade = self.handle.candle(self.orders.get(i)['asset'], 1, 1, date_trade)
+                # close_price = last_trade.close.values[0]
+                # close_time = last_trade.index.time()
+                # closingID = trade_id
 
                 self.trades.update({self.orders.get(i)['tradeID']:{
 
@@ -94,20 +108,22 @@ class trading_execution():
                     'strat_cond': self.orders.get(i)['strat_cond'],
                     'strat_name': self.orders.get(i)['strat_name'],
                     'commission': self.orders.get(i)['commission'] * 2,
+                    'margin': self.orders.get(i)['margin'], #UP
 
                     'close_price': close_price,
-                    'realizedPL': round((close_price-self.orders.get(i)['entry_price']) * self.orders.get(i)['qty'] / self.handle.std_curr(self.orders.get(i)['asset']), 2),
-                    'close_time': self.handle.last_trade(trade_id)[3],
-                    'closingID': self.handle.last_trade(trade_id)[0]
+                    'realizedPL': round((close_price-self.orders.get(i)['entry_price']) * self.orders.get(i)['qty'] / self.handle.std_curr(self.orders.get(i)['asset']), 2), #date_trade
+                    'close_time': last_trade[3],
+                    'closingID': last_trade[0]
 
                 }})
 
-                pd.to_pickle(self.trades, f'./DATA/trades/trades_{dt.datetime.now(tz=pytz.timezone("Europe/Moscow")).date()}')
+                pd.to_pickle(self.trades, f'./DATA/trades/trades_{dt.datetime.now(tz=pytz.timezone("Europe/Moscow")).date()}') #date_trade
 
-        except Exception as e: #UPGRADE
-            logging.error(str(e) + f' trade_id {trade_id} and plan_key {i} using order {self.orders.get(i)}')
+        except Exception as e:
+            logging.error(str(e) + f' errr on add_log with {self.orders.get(i)} \n')
             pass
- 
+
+        #else:
 
         
     def close_all(self):
@@ -118,12 +134,18 @@ class trading_execution():
 
             for i in self.orders.keys():
 
-                if self.orders.get(i)['tradeID'] in self.handle.open_positions():
+                if self.orders.get(i)['tradeID'] in self.handle.open_positions(): #and date_trade.date() == dt.datetime.now().date()
 
                     self.handle.close_order(str(self.orders.get(i)['tradeID']))
 
                     lt.append((i, self.orders.get(i)['tradeID']))    
 
+                # else:
+                #     lt.append((i, self.orders.get(i)['tradeID']))    
+
+
+        print('waiting to close all')
+        time.sleep(120)
 
         if len(lt) > 0:
             for i in lt:
@@ -138,8 +160,7 @@ class trading_execution():
                                                                     'target', 'targetID', 'plan_key', 'realizedPL', 'closingID']])
 
         print('\n Order Dictionary -> ', 
-                        pd.DataFrame(self.orders.values(), self.orders.keys())[['asset', 'current_price', 'direction', 'entry_date', 'entry_price',
-                                                                                'entry_time', 'qty', 'stop', 'target', 'tradeID', 'unrealizedPL']])
+                        pd.DataFrame(self.orders.values(), self.orders.keys()))
 
         print(f'\n Open Positions -> {self.handle.open_positions()}')
 
@@ -154,6 +175,8 @@ class trading_execution():
 
         # import os
         # os._exit(0)
+
+
 
     def order_update(self):
 
@@ -170,6 +193,7 @@ class trading_execution():
                     if orderid == self.handle.open_positions().get(ii)['orderID']:
 
                         entry_price = self.handle.open_positions().get(ii)['entry_price']
+                        convert = self.handle.std_curr(self.orders.get(i)['asset']) #UP
 
                         self.orders.get(i).update({
 
@@ -180,62 +204,78 @@ class trading_execution():
                                 'entry_time': self.handle.open_positions().get(ii)['entry_time'],
                                 'entry_price': entry_price, 
                                 'current_price': current_price,
-                                'unrealizedPL': round((entry_price - current_price) * self.orders.get(i)['qty'] / self.handle.std_curr(self.orders.get(i)['asset']), 2),
+                                'unrealizedPL': round((entry_price - current_price) * self.orders.get(i)['qty'] / convert, 2), #UP
+                                'margin': round(current_price * self.orders.get(i)['qty'] * 0.03 / convert, 2), #UP
 
                         }) 
 
             else:
 
-                self.orders.get(i).update({
+                try:
+                    self.orders.get(i).update({
 
-                        'current_price': current_price,
-                        'unrealizedPL': round((current_price - self.orders.get(i)['entry_price']) * self.orders.get(i)['qty'] / self.handle.std_curr(self.orders.get(i)['asset']), 2), 
+                            'current_price': current_price,
+                            'unrealizedPL': round((current_price - self.orders.get(i)['entry_price']) * self.orders.get(i)['qty'] / self.handle.std_curr(self.orders.get(i)['asset']), 2), 
 
-                })
+                    })
+
+                except Exception as e:
+                    logging.error(str(e) + f'error on orders_update {self.orders.get(i).update} \n')
+                    pass
 
             
-            pd.to_pickle(self.orders, f'./DATA/orders/orders_{dt.datetime.now(tz=pytz.timezone("Europe/Moscow")).date()}')
+            pd.to_pickle(self.orders, f'./DATA/orders/orders_{dt.datetime.now(tz=pytz.timezone("Europe/Moscow")).date()}') #date_trade
+
+
+    def order_mgt(self):
+
+        lt = []
+
+        for i in self.orders.keys():
+
+            #if date_trade.date() != dt.datetime.now().date()
+            # data = self.handle.candle_data(self.orders.get(i)['asset'], 1, 1, date_trade)
+
+            # if data.low.values[0] < self.orders.get(i)['stop'] or data.high.values[0] > self.orders.get(i)['target'] and self.orders.get(i)['qty'] > 0:
+            #     lt.append((i, self.orders.get(i)['tradeID']))
+
+            # elif data.low.values[0] < self.orders.get(i)['target'] or data.high.values[0] > self.orders.get(i)['stop'] and self.orders.get(i)['qty'] < 0:
+            #     lt.append((i, self.orders.get(i)['tradeID']))
+            
+            if str(self.orders.get(i)['tradeID']) not in self.handle.open_positions().keys(): #date_trade.date() == dt.datetime.now().date()
+                
+                lt.append((i, self.orders.get(i)['tradeID']))
+
+            elif self.check_duration(i):
+
+                self.handle.close_order(str(self.orders.get(i)['tradeID']))
+
+        
+        print('\n', pd.DataFrame(self.orders.values(), self.orders.keys())[['asset', 'commission', 'current_price', 'entry_date',
+                                                                            'entry_price', 'entry_time', 'qty', 'stop', 'stopID',
+                                                                            'target', 'targetID', 'tradeID', 'unrealizedPL']])
+
+
+        if len(lt) > 0:
+            for i in lt:
+                # self.change_start(i[0]) #DELETE
+                self.add_log(i[0], i[1])
+                self.orders.pop(i[0])
+            pd.to_pickle(self.orders, f'./DATA/orders/orders_{dt.datetime.now(tz=pytz.timezone("Europe/Moscow")).date()}') #date_trade
 
 
 
     def day_mgt(self):
         
-        if self.orders == {}:
+        if self.orders == {}: #any(self.orders)
             orders_pl = 0
         else:
             orders_pl = sum(pd.DataFrame(self.orders.values(), self.orders.keys())['unrealizedPL'])
 
-            lt = []
-
-
-            for i in self.orders.keys():
-                
-                if str(self.orders.get(i)['tradeID']) not in self.handle.open_positions().keys():
-                    
-                    lt.append((i, self.orders.get(i)['tradeID']))
-
-
-                elif self.check_duration(i):
-
-                    self.handle.close_order(str(self.orders.get(i)['tradeID']))
-
-                    lt.append((i, self.orders.get(i)['tradeID']))
-
+            self.order_mgt()
             
-            print('\n', pd.DataFrame(self.orders.values(), self.orders.keys())[['asset', 'commission', 'current_price', 'entry_date',
-                                                                                'entry_price', 'entry_time', 'qty', 'stop', 'stopID',
-                                                                                'target', 'targetID', 'tradeID', 'unrealizedPL']])
 
-
-            if len(lt) > 0:
-                for i in lt:
-                    self.change_start(i[0])
-                    self.add_log(i[0], i[1])
-                    self.orders.pop(i[0])
-                pd.to_pickle(self.orders, f'./DATA/orders/orders_{dt.datetime.now(tz=pytz.timezone("Europe/Moscow")).date()}')
-
-
-        if len(self.trades.keys()) > 0:
+        if len(self.trades.keys()) > 0: #any(self.trades)
 
             closed_pl = sum(pd.DataFrame(self.trades.values(), self.trades.keys())['realizedPL'])
 
@@ -260,33 +300,33 @@ class trading_execution():
         
 
     def exit_calc(self, curr, id, type='day'):
-
+    
         if type == 'day':
             target = (self.plan[id]['profit'][0] / 10) * self.plan[id]['atr']
-            stop_price = (self.plan[id]['profit'][0] / 10) * self.plan[id]['atr']
+            stop_price = (self.plan[id]['stop'][0] / 10) * self.plan[id]['atr']
 
         else:
             target_df = self.handle.candle_data(curr, self.plan[id]['profit'][1], self.plan[id]['profit'][2] + 1 )
-
             target = self.ind.ATR(target_df, self.plan[id]['profit'][2], self.plan[id]['profit'][0])
-            stop_price = self.ind.ATR(target_df, self.plan[id]['stop'][2], self.plan[id]['stop'][0])
+
+            stop_df = self.handle.candle_data(curr, self.plan[id]['stop'][1], self.plan[id]['stop'][2] + 1 )
+            stop_price = self.ind.ATR(stop_df, self.plan[id]['stop'][2], self.plan[id]['stop'][0])
 
         return target, stop_price
 
 
-
-    def condition(self, id, curr):
+    def condition(self, id, curr): #date_trade
         
         if ((self.plan[id]['try_qty'] >= 1) and 
             ((self.current_time() > self.plan[id]['start'] and self.current_time() < self.plan[id]['break_start']) 
             or (self.current_time() < self.plan[id]['end'] and self.current_time() > self.plan[id]['break_end'])) and 
-            self.strat.master(id, self.plan[id]['strat_cond']) and (id not in self.orders.keys()) and 
-            (self.current_time() > self.handle.trading_hours(curr)[0] and self.current_time() < self.handle.trading_hours(curr)[1])): 
+            (self.current_time() > self.handle.trading_hours(curr)[0] and self.current_time() < self.handle.trading_hours(curr)[1]) and
+            self.strat.master(id, self.plan[id]['strat_cond']) and (id not in self.orders.keys())): 
 
-            current_price = self.handle.candle_data(curr, 1, 1).close.values[0]
-            target, stop_price = self.exit_calc(curr, id, self.plan[id]['profit'][3])
+            current_price = self.handle.candle_data(curr, 1, 1).close.values[0] #date_trade
+            target, stop_price = self.exit_calc(curr, id, self.plan[id]['profit'][3]) #date_trade
             digits = self.handle.instruments_info(curr) -1
-            size = int(self.handle.std_curr(curr) * (self.plan[id]['size'] / stop_price))
+            size = int(self.handle.std_curr(curr) * (self.plan[id]['size'] / stop_price)) #date_trade
             direction = self.plan[id]['direction']
 
             if direction == 'buy':
@@ -307,6 +347,12 @@ class trading_execution():
         if direction == 'sell':
             size = -size
         
+        #if date_trade == dt.datetime.now().date():
+        #     order = xxx
+        # else:
+        #     orderid = len(self.orders) + len(self.trades) + 1
+        #     order = (orderid, curr, size, target, stop)
+
         order = self.handle.order(curr, size, target, stop)
 
 
@@ -316,8 +362,8 @@ class trading_execution():
 
         self.orders.update({id:{
             'asset': curr,
-            'entry_date': dt.datetime.now(tz=pytz.timezone("Europe/Moscow")).date(),
-            'entry_time': dt.datetime.now(tz=pytz.timezone("Europe/Moscow")).time(),
+            'entry_date': dt.datetime.now(tz=pytz.timezone("Europe/Moscow")).date(), #date_trade.date()
+            'entry_time': dt.datetime.now(tz=pytz.timezone("Europe/Moscow")).time(), #date_trade.time()
             'orderID': int(order[0].order.orderId),
             'tradeID': 0,
             'targetID': 0,
@@ -336,7 +382,7 @@ class trading_execution():
         }})
 
 
-        pd.to_pickle(self.orders, f'./DATA/orders/orders_{dt.datetime.now(tz=pytz.timezone("Europe/Moscow")).date()}')
+        pd.to_pickle(self.orders, f'./DATA/orders/orders_{dt.datetime.now(tz=pytz.timezone("Europe/Moscow")).date()}') #date_trade
 
-        chart(self.plan, id, curr, self.current_time(), dt.datetime.now(tz=pytz.timezone("Europe/Moscow")).date())
+        chart(self.plan, id, curr, (self.current_time()+100), dt.datetime.now(tz=pytz.timezone("Europe/Moscow")).date())
 
