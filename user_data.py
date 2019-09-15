@@ -3,3 +3,6 @@ ACCESS_TOKEN = 'XXX'
 ENVIRONMENT = "practice"
 MAX_PERCENTAGE_ACCOUNT_AT_RISK = 0.02
 clientID = xxxx
+ip = '127.0.0.1'
+tws = 4002
+gateway = 4003

@@ -1,6 +1,6 @@
 BOT using IB_INSYNC Library. Thank you Ewald!
 
-plan.py, plan_indict, strategy, indicat files most be setup by the user. There is some stuff there but just as sample of it.
+strategy & indicat files most be setup by the user. There is some stuff there but just as sample of it.
 
 The plan can be also setup easy with a dictionary as:
 

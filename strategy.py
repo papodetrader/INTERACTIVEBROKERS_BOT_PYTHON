@@ -1,6 +1,7 @@
 import pandas as pd
 from indicat import indicators
 from handle_data import handler
+import datetime as dt
 
 
 
@@ -23,15 +24,15 @@ class strategy:
                     result.append(self.strategy1(id, 'strat1'))
                 elif i == 'strat2':
                     result.append(self.strategy2(id, 'strat2'))
-                elif i == 'strat3':
-                    result.append(self.strategy3(id, 'strat3'))
-                elif i == 'strat4':
-                    result.append(self.strategy4(id, 'strat4'))
 
-            if False in result:
-                return False
+            res = [i[0] for i in result]
+            strat = [i[1] for i in result]
 
-            return True
+            if 'False' in res:
+                return 'False', strat
+
+            return 'True', strat
+
 
         elif cond == 'or':
             for i in self.plan[id]['strat'].keys():
@@ -39,15 +40,14 @@ class strategy:
                     result.append(self.strategy1(id, 'strat1'))
                 elif i == 'strat2':
                     result.append(self.strategy2(id, 'strat2'))
-                elif i == 'strat3':
-                    result.append(self.strategy3(id, 'strat3'))
-                elif i == 'strat4':
-                    result.append(self.strategy4(id, 'strat4'))
 
-            if True in result:
-                return True
+            res = [i[0] for i in result]
+            strat = [i[1] for i in result]
 
-            return False
+            if 'True' in res:
+                return 'True', strat
+
+            return 'False', strat
 
 
 
@@ -56,53 +56,37 @@ class strategy:
         asset = self.plan[id]['asset']
         timeframe = self.plan[id]['strat'][strat]
         df = self.handle.candle_data(asset, timeframe, period+1)
+        df = df.iloc[:-1]
 
         return df
-    
 
 
-    def strategy1(self, id, strat, period=3):
-        
-        return False
-    
+    def strategy1(self, id, strat, period=5): 
+        df = self.dataframe(id, strat, period+5)
+
+        strat = self.indicators.rsi(df, period)
 
 
-    def strategy2(self, id, strat, period=50): #UP-
-        df = self.dataframe(id, strat, period)
+        if strat[1] < 30 and strat[0] > strat[1] and self.plan[id]['direction'] == 'buy':
+            return 'True', strat
 
-        if self.indicators.rsi(df, period)[1] < 20 and self.indicators.rsi(df, period)[0] > self.indicators.rsi(df, period)[1] and self.plan[id]['direction'] == 'buy':
-            return True
+        elif strat[1] > 70 and strat[0] < strat[1] and self.plan[id]['direction'] == 'sell':
+            return 'True', strat
 
-        elif self.indicators.rsi(df, period)[1] > 80 and self.indicators.rsi(df, period)[0] < self.indicators.rsi(df, period)[1] and self.plan[id]['direction'] == 'sell':
-            return True
-
-        return False
+        return 'False', strat
 
 
 
-    def strategy3(self, id, strat, period=20):
-        df = self.dataframe(id, strat, period)
+    def strategy2(self, id, strat, period=20):
+        df = self.dataframe(id, strat, period+1)
 
-        if df.iloc[-1].close > self.indicators.MA(df, period) and self.plan[id]['direction'] == 'buy':
-            return True
+        strat = self.indicators.MA(df, period)
 
-        elif df.iloc[-1].close < self.indicators.MA(df, period) and self.plan[id]['direction'] == 'sell':
-            return True
+        if df.iloc[-1].close > strat and self.plan[id]['direction'] == 'buy':
+            return 'True', strat
 
-        return False
+        elif df.iloc[-1].close < strat and self.plan[id]['direction'] == 'sell':
+            return 'True', strat
 
-
-
-    def strategy4(self, id, strat, period=20):
-        df = self.dataframe(id, strat, period)
-
-        if self.indicators.channel(df, period) == 'long' and self.plan[id]['direction'] == 'buy':
-            return True
-
-        elif self.indicators.channel(df, period) == 'short' and self.plan[id]['direction'] == 'sell':
-            return True
-
-        return False
-
-
+        return 'False', strat
 

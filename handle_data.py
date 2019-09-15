@@ -3,20 +3,21 @@ import pytz
 import datetime as dt
 import decimal
 from ib_insync import *
-from assets import asset, assets
+from assets import assets
 import time
 from user_data import *
 
 
 ib = IB()
-ib.connect('127.0.0.1', 4002, clientId=clientID) #7496 TWS - 4002 GATEWAY
+ib.connect(ip, tws, clientId=clientID)
+
+
 
 class handler:
     
     def __init__(self):
         self.assets = assets
-        self.asset = asset
-    
+
 
 
     def getGranularity(self, size_in_minutes):
@@ -76,23 +77,24 @@ class handler:
 
 
 
-    def contract_find(self, symbol): #UP
+    def contract_find(self, symbol): 
     
-        type = [self.assets.get(i)[2] for i in self.assets.keys() if symbol in self.assets.get(i)[0]][0]
-        exchange = [self.assets.get(i)[1] for i in self.assets.keys() if symbol in self.assets.get(i)[0]][0]
+        type = [self.assets.get(i)[1] for i in self.assets.keys() if i == symbol][0]
+        exchange = [self.assets.get(i)[0] for i in self.assets.keys() if i == symbol][0]
 
-        
         if type == 'Forex':
             return Forex(symbol, exchange= exchange)
             
         elif type == 'CFD':
+            # x = ib.qualifyContracts(CFD(symbol, exchange= exchange))
             return CFD(symbol, exchange= exchange)
 
         elif type == 'Future':
-            localSymbol = ib.reqContractDetails(Future(symbol, exchange= exchange))[0].contract.localSymbol
-            secType = ib.reqContractDetails(Future(symbol, exchange= exchange))[0].contract.secType
-            conId = ib.reqContractDetails(Future(symbol, exchange= exchange))[0].contract.conId
-            lastTraded = ib.reqContractDetails(Future(symbol, exchange= exchange))[0].contract.lastTradeDateOrContractMonth
+            contract = ib.reqContractDetails(Future(symbol, exchange= exchange))[0].contract
+            localSymbol = contract.localSymbol
+            secType = contract.secType
+            conId = contract.conId
+            lastTraded = contract.lastTradeDateOrContractMonth
 
             return Future(secType= secType, conId= conId, symbol= symbol, lastTradeDateOrContractMonth= lastTraded, exchange= exchange, localSymbol=localSymbol)
 
@@ -194,14 +196,14 @@ class handler:
 
     def std_curr(self, symbol):
  
-        symbol_data = [self.assets.get(i)[1] for i in self.assets.keys() if i == symbol][0]
+        symbol_data = [self.assets.get(i)[2] for i in self.assets.keys() if i == symbol][0]
 
         if symbol_data == 'USD':
             return 1
-        elif symbol_data[:3] in ['GBP', 'EUR', 'AUD']:
-            return 1 / self.candle_data(symbol_data, 1, 2).iloc[-1].close
+        elif symbol_data in ['GBP', 'EUR', 'AUD']:
+            return 1 / self.candle_data(symbol_data+'USD', 1, 2).iloc[-1].close
         else:
-            return self.candle_data(symbol_data, 1, 2).iloc[-1].close
+            return self.candle_data('USD'+symbol_data, 1, 2).iloc[-1].close
 
 
 
@@ -241,4 +243,5 @@ class handler:
 
 
         return start_trade, end_trade
+
 
