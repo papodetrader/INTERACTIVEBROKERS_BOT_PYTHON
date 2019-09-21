@@ -1,58 +1,75 @@
-from execution import trading_execution
-from plan import build_plan
-
-import os
-import datetime as dt
+import ta 
 import pandas as pd
-import pytz
-import warnings
-warnings.filterwarnings("ignore")
+import numpy as np
+from handle_data import handler
+
+class indicators:
+    
+    def __init__(self):
+        self.handle = handler()
+
+    def ATR(self, df, period = 14, multiplier = 1):
+        """ ATR bands input ATR(time = 14, multiplier = 1)."""
+        
+        df.columns = map(str.lower, df.columns) 
+        df.sort_index(inplace = True)
+        df = df.reset_index() 
+
+        if type(period) == int:
+            z = ta.average_true_range(df['high'], df['low'], df['close'], period)
+            z = z.iloc[-1]
+            return float(z)*multiplier
+
+        else:
+            for i in period:
+                df[f'ATR{i}'] = ta.average_true_range(df['high'], df['low'], df['close'], i)
+            return df.iloc[-1]
 
 
-def read_variables(): 
-    try:
-        plan = [i for i in os.listdir('./DATA/plan/') if str(dt.datetime.now(tz=pytz.timezone('Europe/Moscow')).date()) in i][0] 
-        plan = pd.read_pickle(f'./DATA/plan/{plan}')
-    except:
-        build_plan().run_daily()
-        plan = [i for i in os.listdir('./DATA/plan/') if str(dt.datetime.now(tz=pytz.timezone('Europe/Moscow')).date()) in i][0] 
-        plan = pd.read_pickle(f'./DATA/plan/{plan}')
+  
+    def MA(self, df, period = 14):
+        
+        df.columns = map(str.lower, df.columns) 
+        df.sort_index(inplace = True)
 
-    try:
-        trades = [i for i in os.listdir('./DATA/trades/') if str(dt.datetime.now(tz=pytz.timezone('Europe/Moscow')).date()) in i][0] 
-        trades = pd.read_pickle(f'./DATA/trades/{trades}')
+        if type(period) == int:
+            z = df.close.rolling(period).mean()
+            z = z.iloc[-1]
+            return round(float(z), 5)
+        
+        else:
+            for i in period:
+                df[f'MM{i}'] = df.close.rolling(i).mean()
+            return df.iloc[-1]
 
-    except:
-        trades = {}
+        
 
-    try:
-        orders = [i for i in os.listdir('./DATA/orders/') if str(dt.datetime.now(tz=pytz.timezone('Europe/Moscow')).date()) in i][0] 
-        orders = pd.read_pickle(f'./DATA/orders/{orders}')
-    except:
-        orders = {}
+    def rsi(self, df, period=5): 
 
-    if len(orders.keys()) > 0:
-        orders_ = pd.DataFrame(orders.values(), orders.keys()).index.value_counts()
-        for i in range(len(orders_)):
-            if orders_.index[i] in plan.keys():
-                plan.get(orders_.index[i]).update({'try_qty': plan.get(orders_.index[i])['try_qty']-orders_.iloc[i]})
+        df.columns = map(str.lower, df.columns) 
+        df.sort_index(inplace = True)
+        df = df.reset_index() 
 
-    if len(trades.keys()) > 0:
-        trades_ = pd.DataFrame(trades.values(), trades.keys())
-        trades_ = trades_[trades_.entry_date == dt.datetime.now(tz=pytz.timezone('Europe/Moscow')).date()] 
-        trades = pd.DataFrame.to_dict(trades_, orient='index')
-        trades_ = trades_.set_index('plan_key').index.value_counts()
+        rsi_k = ta.stoch(df['high'], df['low'], df['close'], period)
+        rsi_k = rsi_k.iloc[-1]
+        rsi_d = ta.stoch_signal(df['high'], df['low'], df['close'], period, 3)
+        rsi_d = rsi_d.iloc[-1]
 
-        for i in range(len(trades_)):
-            if trades_.index[i] in plan.keys():
-                plan.get(trades_.index[i]).update({'try_qty': plan.get(trades_.index[i])['try_qty']-trades_.iloc[i]})
-
-    print(pd.DataFrame(plan.values(), plan.keys()))
-
-    return plan, orders, trades
+        return int(rsi_d), int(rsi_k)
 
 
-plan, orders, trades = read_variables()
-execution = trading_execution(plan, orders, trades)
 
+    def channel(self, df, period=50):
+    
+        df.columns = map(str.lower, df.columns)
+        df.sort_index(inplace = True)
+        df = df.reset_index()
 
+        if ta.donchian_channel_hband_indicator(df.close, period)[0] == 1.0:
+            return 'long'
+
+        elif ta.donchian_channel_lband_indicator(df.close, period)[0] == 1.0:
+            return 'short'
+
+        
+        return 'none'

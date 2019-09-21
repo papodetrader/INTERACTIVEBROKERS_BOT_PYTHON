@@ -13,22 +13,36 @@ class indicators:
         
         df.columns = map(str.lower, df.columns) 
         df.sort_index(inplace = True)
-        df = df.reset_index()
-        z = ta.average_true_range(df['high'], df['low'], df['close'], period)
-        z = z.iloc[-1]
+        df = df.reset_index() 
 
-        return float(z)*multiplier
+        if type(period) == int:
+            z = ta.average_true_range(df['high'], df['low'], df['close'], period)
+            z = z.iloc[-1]
+            return float(z)*multiplier
+
+        else:
+            for i in period:
+                df[f'ATR{i}'] = ta.average_true_range(df['high'], df['low'], df['close'], i)
+            return df.iloc[-1]
+
+
   
     def MA(self, df, period = 14):
         
         df.columns = map(str.lower, df.columns) 
         df.sort_index(inplace = True)
-        z = df.close.rolling(period).mean()
-        z = z.iloc[-1]
 
-        return round(float(z), 5)
+        if type(period) == int:
+            z = df.close.rolling(period).mean()
+            z = z.iloc[-1]
+            return round(float(z), 5)
+        
+        else:
+            for i in period:
+                df[f'MM{i}'] = df.close.rolling(i).mean()
+            return df.iloc[-1]
 
-#################################################################################################
+        
 
     def rsi(self, df, period=5): 
 
@@ -43,3 +57,19 @@ class indicators:
 
         return int(rsi_d), int(rsi_k)
 
+
+
+    def channel(self, df, period=50):
+    
+        df.columns = map(str.lower, df.columns)
+        df.sort_index(inplace = True)
+        df = df.reset_index()
+
+        if ta.donchian_channel_hband_indicator(df.close, period)[0] == 1.0:
+            return 'long'
+
+        elif ta.donchian_channel_lband_indicator(df.close, period)[0] == 1.0:
+            return 'short'
+
+        
+        return 'none'
