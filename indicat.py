@@ -57,19 +57,3 @@ class indicators:
 
         return int(rsi_d), int(rsi_k)
 
-
-
-    def channel(self, df, period=50):
-    
-        df.columns = map(str.lower, df.columns)
-        df.sort_index(inplace = True)
-        df = df.reset_index()
-
-        if ta.donchian_channel_hband_indicator(df.close, period)[0] == 1.0:
-            return 'long'
-
-        elif ta.donchian_channel_lband_indicator(df.close, period)[0] == 1.0:
-            return 'short'
-
-        
-        return 'none'

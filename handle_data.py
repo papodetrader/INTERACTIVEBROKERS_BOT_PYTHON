@@ -9,7 +9,11 @@ from user_data import *
 
 
 ib = IB()
-ib.connect(ip, tws, clientId=clientID)
+
+try:
+    ib.connect(ip, gateway, clientId=clientID)
+except:
+    ib.connect(ip, tws, clientId=clientID)
 
 
 
@@ -43,7 +47,7 @@ class handler:
                 return "1 week"
             elif size_in_minutes == 43800:
                 return "1 month"
-            # default: two hour candles
+            # default: one minute candles
             return "1 min"
 
 
@@ -58,11 +62,12 @@ class handler:
         if count < 86400:     
             count = str(count) + ' S'
         elif count > 86400 and count < 2592000:
-            count = '30 D'
+            count = str(int(count / 86200) +1) + ' D'
         elif count > 2592000 and count < 7862400:
-            count = '13 W'
+            count = str(int(count / 420000)) + ' W'
         elif count > 7862400:
-            count = '10 Y'
+            count = str(int(count / 21000000)) + ' Y'
+
 
         size_in_minutes = self.getGranularity(size_in_minutes)
 
@@ -70,10 +75,17 @@ class handler:
         barSizeSetting= size_in_minutes, whatToShow='MIDPOINT', useRTH=False)
 
         # convert to pandas dataframe:
-        df = util.df(bars)[['date', 'open', 'high', 'low', 'close']]
-        df['asset'] = symbol
+        try:
+            df = util.df(bars)[['date', 'open', 'high', 'low', 'close']]
+            df['asset'] = symbol
 
-        return df
+            return df
+
+        except:
+            print(symbol, size_in_minutes, count, type(bars), bars)
+
+            pass
+
 
 
 
@@ -162,7 +174,7 @@ class handler:
 
     def account_balance(self):
 
-        balance = float([i.value for i in ib.accountValues() if i.tag == 'TotalCashValue'][0])
+        balance = float([i.value for i in ib.accountValues() if i.tag == 'NetLiquidation'][0])
 
         return balance
 
@@ -201,7 +213,8 @@ class handler:
         if symbol_data == 'USD':
             return 1
         elif symbol_data in ['GBP', 'EUR', 'AUD']:
-            return 1 / self.candle_data(symbol_data+'USD', 1, 2).iloc[-1].close
+            x = 1 / self.candle_data(symbol_data+'USD', 1, 2).iloc[-1].close
+            return x
         else:
             return self.candle_data('USD'+symbol_data, 1, 2).iloc[-1].close
 
@@ -223,10 +236,10 @@ class handler:
         for i in ib.fills():
 
             if i.execution.permId == tradeID+1:
-                return [i.execution.permId, i.execution.price, self.symbol_fix(i.contract.localSymbol), (i.execution.time + dt.timedelta(hours=3)).time()]
+                return [i.execution.permId, i.execution.price, self.symbol_fix(i.contract.localSymbol), (i.execution.time + dt.timedelta(hours=3)).time(), i.execution.time.date()]
             
             elif i.execution.permId == tradeID+2:
-                return [i.execution.permId, i.execution.price, self.symbol_fix(i.contract.localSymbol), (i.execution.time + dt.timedelta(hours=3)).time()]
+                return [i.execution.permId, i.execution.price, self.symbol_fix(i.contract.localSymbol), (i.execution.time + dt.timedelta(hours=3)).time(), i.execution.time.date()]
 
     
 
@@ -234,14 +247,18 @@ class handler:
 
         lt = [i.split(':')[1] for i in self.instruments_info(symbol, 'others')[0].tradingHours.split(';')[0].split('-')]
 
-        start_trade = int(lt[0]) + 300
-        
-        if start_trade > 2000 and start_trade < 2400:
-            start_trade = 0
+        if lt[0] == 'CLOSED':
+            return 0, 100
 
-        end_trade = int(lt[1]) + 300   
+        else:
+            start_trade = int(lt[0]) + 300
+            
+            if start_trade > 2000 and start_trade < 2400:
+                start_trade = 0
+
+            end_trade = int(lt[1]) + 300   
 
 
-        return start_trade, end_trade
+            return start_trade, end_trade
 
 
